@@ -1,0 +1,405 @@
+
+import acm.graphics.*;
+import acm.program.*;
+import acm.util.*;
+import java.applet.*;
+import java.awt.*;
+import java.awt.event.*;
+
+public class main extends GraphicsProgram {
+
+    /** Width and height of application window in pixels */
+    public static final int APPLICATION_WIDTH = 400;
+    public static final int APPLICATION_HEIGHT = 600;
+
+    /** Dimensions of game board (usually the same) */
+    private static final int WIDTH = APPLICATION_WIDTH;
+    private static final int HEIGHT = APPLICATION_HEIGHT;
+
+    /** Dimensions of the paddle */
+    private static final int PADDLE_WIDTH = 60;
+    private static final int PADDLE_HEIGHT = 10;
+
+    /** Offset of the paddle up from the bottom */
+    private static final int PADDLE_Y_OFFSET = 30;
+
+    /** Speed of the paddle */
+    private static final int PADDLE_SPEED = 5;
+
+    /** Number of bricks per row */
+    private static final int NBRICKS_PER_ROW = 10;
+
+    /** Number of rows of bricks */
+    private static final int NBRICK_ROWS = 10;
+
+    /** Separation between bricks */
+    private static final int BRICK_SEP = 4;
+
+    /** Width of a brick */
+    private static final int BRICK_WIDTH =
+            (WIDTH - (NBRICKS_PER_ROW - 1) * BRICK_SEP) / NBRICKS_PER_ROW;
+
+    /** Height of a brick */
+    private static final int BRICK_HEIGHT = 8;
+
+    /** Radius of the ball in pixels */
+    private static final int BALL_RADIUS = 10;
+
+    /** Offset of the first bricks in rows from the left */
+    private static final int BRICK_X_OFFSET =
+            (WIDTH - BRICK_WIDTH * NBRICKS_PER_ROW - BRICK_SEP * (NBRICKS_PER_ROW - 1))/2;
+
+    /** Offset of the top brick row from the top */
+    private static final int BRICK_Y_OFFSET = 70;
+
+    /** Number of turns */
+    private static final int NTURNS = 3;
+
+    /** Animation cycle delay */
+    private static final int DELAY = 10;
+
+    /**Speed of the ball */
+    private double VEL_X = 4;
+    private double VEL_Y = 7;
+
+    /** private instance variables */
+    private GRect paddle;
+    private GOval ball;
+
+    /** The object being dragged */
+    private GObject gobj;
+
+    /** The last mouse position */
+    private GPoint last;
+
+    /** The value for generating random numbers */
+    private RandomGenerator rgen = RandomGenerator.getInstance();
+
+    /** The speed of the ball for x coordinates */
+    private double vx;
+
+    /** The speed of the ball for y coordinates */
+    private double vy = 3.0;
+
+    /** The image for lives in the game */
+    private GImage heart1;
+    private GImage heart2;
+    private GImage heart3;
+
+    /** The number of lives you have */
+    private int lives = 3;
+
+    /** The score you have */
+    private int score = 0;
+
+    /** Score that you get after colliding with 1 brick */
+    private static final int SCORE = 50;
+
+    /** The label to show your score */
+    private GLabel score1;
+
+    /** Score that you get after colliding with 1 brick */
+    private int bricksLeft = NBRICK_ROWS*NBRICKS_PER_ROW;
+
+    /** Your level at this game*/
+    private int level = 1;
+
+    /* Method: run() */
+    /** Runs the Breakout program. */
+    public void run() {
+        this.setSize(WIDTH,HEIGHT);
+        setBackground(new Color(223,236,255));
+        buildBricks();
+        buildPaddle();
+        buildBall();
+        addHearts();
+        showScore();
+        addMouseListeners();
+        moveBall();
+    }
+
+    /** Sets the sound of bounce of the ball */
+    AudioClip bounceClip = MediaTools.loadAudioClip("C:\\bounce.au");
+
+    /* Method: buildBricks() */
+    /** Creates 10 rows and 10 columns of colorful bricks */
+    private void buildBricks() {
+        for(int i=0; i<NBRICKS_PER_ROW; i++) {
+            for(int w=0; w<NBRICK_ROWS; w++) {
+                if(w<NBRICK_ROWS/5) {
+                    GRect brick = new GRect(BRICK_WIDTH,BRICK_HEIGHT);
+                    brick.setFilled(true);
+                    brick.setFillColor(new Color(75, 0, 130));
+                    add(brick,BRICK_X_OFFSET+(BRICK_WIDTH+BRICK_SEP)*i,BRICK_Y_OFFSET+(BRICK_HEIGHT+BRICK_SEP)*w);
+                }
+                if(w>=NBRICK_ROWS/5 && w<NBRICK_ROWS*2/5) {
+                    GRect brick2 = new GRect(BRICK_WIDTH,BRICK_HEIGHT);
+                    brick2.setFilled(true);
+                    brick2.setFillColor(new Color(192, 0, 180));
+                    add(brick2,BRICK_X_OFFSET+(BRICK_WIDTH+BRICK_SEP)*i,BRICK_Y_OFFSET+(BRICK_HEIGHT+BRICK_SEP)*w);
+                }
+                if(w>=NBRICK_ROWS*2/5 && w<NBRICK_ROWS*3/5) {
+                    GRect brick3 = new GRect(BRICK_WIDTH,BRICK_HEIGHT);
+                    brick3.setFilled(true);
+                    brick3.setFillColor(new Color(243,28,255));
+                    add(brick3,BRICK_X_OFFSET+(BRICK_WIDTH+BRICK_SEP)*i,BRICK_Y_OFFSET+(BRICK_HEIGHT+BRICK_SEP)*w);
+                }
+                if(w>=NBRICK_ROWS*3/5 && w<NBRICK_ROWS*4/5) {
+                    GRect brick4 = new GRect(BRICK_WIDTH,BRICK_HEIGHT);
+                    brick4.setFilled(true);
+                    brick4.setFillColor(new Color(237,107,255));
+                    add(brick4,BRICK_X_OFFSET+(BRICK_WIDTH+BRICK_SEP)*i,BRICK_Y_OFFSET+(BRICK_HEIGHT+BRICK_SEP)*w);
+                }
+                if(w>=NBRICK_ROWS*4/5 && w<NBRICK_ROWS) {
+                    GRect brick5 = new GRect(BRICK_WIDTH,BRICK_HEIGHT);
+                    brick5.setFilled(true);
+                    brick5.setFillColor(new Color(255,161,255));
+                    add(brick5,BRICK_X_OFFSET+(BRICK_WIDTH+BRICK_SEP)*i,BRICK_Y_OFFSET+(BRICK_HEIGHT+BRICK_SEP)*w);
+                }
+            }
+        }
+    }
+
+    /* Method: buildPaddle() */
+    /** Creates paddle down in middle of the world */
+    private void buildPaddle() {
+        paddle = new GRect(PADDLE_WIDTH-(level-1)*5,PADDLE_HEIGHT-(level-1)*0.5);
+        paddle.setFilled(true);
+        paddle.setFillColor(new Color(0,255,225));
+        add(paddle,(WIDTH-PADDLE_WIDTH)/2,HEIGHT-PADDLE_Y_OFFSET);
+    }
+
+    /** Called on mouse press to record the coordinates of the click */
+    public void mousePressed(MouseEvent e) {
+        last = new GPoint(e.getX(), HEIGHT-PADDLE_Y_OFFSET);
+        gobj = getElementAt(last);
+    }
+
+    /** Called on mouse drag to reposition the object */
+    public void mouseDragged(MouseEvent e) {
+        if (gobj != null) {
+            if(e.getX()>=0 && e.getX()<=WIDTH) {
+                gobj.move(e.getX() - last.getX(), HEIGHT-PADDLE_Y_OFFSET - last.getY());
+                last = new GPoint(e.getX(), HEIGHT-PADDLE_Y_OFFSET);
+            }
+        }
+    }
+
+    /* Method: buildBall() */
+    /** Creates ball in middle of the world */
+    private void buildBall() {
+        ball = new GOval((WIDTH/2)-BALL_RADIUS, (HEIGHT/2)-BALL_RADIUS, 2*BALL_RADIUS, 2*BALL_RADIUS);
+        ball.setFilled(true);
+        ball.setFillColor(new Color(255,230,151));
+        add(ball);
+    }
+
+    /* Method: moveBall() */
+    /** Moves ball */
+    private void moveBall() {
+        vx = rgen.nextDouble(1.0, 3.0);
+        if (rgen.nextBoolean(0.5)) vx = -vx;
+        waitForClick();
+        vy = 3 + level*1;
+        firstSetup();
+        while(true) {
+            ball.move(vx, vy);
+            checkForWall();
+            checkForPaddle();
+            checkForBricks();
+            if (bricksLeft == 0) {
+                removeAll();
+                GLabel label1 = new GLabel("No bricks left! You are a winner!");
+                label1.setFont("SimHei-18");
+                add(label1, 50, HEIGHT/2 - 35);
+                GLabel label2 = new GLabel("Your score in the game:" + score);
+                label2.setFont("SimHei-18");
+                add(label2, 75, HEIGHT/2 + 35);
+                waitForClick();
+                level +=1;
+                removeAll();
+                bricksLeft = NBRICK_ROWS*NBRICKS_PER_ROW;
+                run();
+            }
+            pause(DELAY);
+        }
+    }
+
+    /* Method: cheeckForPaddle() */
+    /** Checks if the ball has reached the paddle */
+    private void checkForPaddle() {
+        double xBall = ball.getX();
+        double yBall = ball.getY();
+        double xPaddle = paddle.getX();
+        double yPaddle = paddle.getY();
+        if ((yBall+ball.getHeight())>=yPaddle && xBall+ball.getWidth()/2>xPaddle && xBall+ball.getWidth()/2<=xPaddle+PADDLE_WIDTH) {
+            bounceClip.play();
+            vy = -vy;
+        }
+    }
+
+    /* Method: checkForWall() */
+    /** Checks if the ball has reached the wall */
+    private void checkForWall() {
+        double x = ball.getX();
+        double y = ball.getY();
+        if ((x+ball.getWidth())>getWidth()) {
+            bounceClip.play();
+            vx = -vx;
+        }
+        if (x<0) {
+            bounceClip.play();
+            vx = -vx;
+        }
+        if (y<0) {
+            bounceClip.play();
+            vy = -vy;
+        }
+        if (y+ball.getHeight()>getHeight()) {
+            remove(ball);
+            checkLives();
+            if (lives>0) {
+                buildBall();
+                waitForClick();
+                firstSetup();
+            }
+        }
+    }
+
+    /* Method: checkForBricks() */
+    /** Checks if the ball has reached the brick */
+    private void checkForBricks() {
+        double x1 = ball.getX();
+        double y1 = ball.getY();
+        double x2 = x1 + ball.getWidth();
+        double y2 = y1;
+        double x3 = x1;
+        double y3 = y1 + ball.getHeight();
+        double x4 = x2;
+        double y4 = y3;
+        GObject collider = getCollidingObject(x1,y1);
+        if (collider != null&&collider != score1) {
+            score += SCORE;
+            remove(score1);
+            showScore();
+            remove(collider);
+            bricksLeft -= 1;
+            bounceClip.play();
+            vy = - vy;
+        }
+        else {
+            collider = getCollidingObject(x2,y2);
+            if (collider != null&&collider != score1) {
+                score += SCORE;
+                remove(score1);
+                showScore();
+                remove(collider);
+                bricksLeft -= 1;
+                bounceClip.play();
+                vy = - vy;
+            }
+            else {
+                collider = getCollidingObject(x3,y3);
+                if (collider != null&&collider != score1) {
+                    score += SCORE;
+                    remove(score1);
+                    showScore();
+                    remove(collider);
+                    bricksLeft -= 1;
+                    bounceClip.play();
+                    vy = - vy;
+                }
+                else {
+                    collider = getCollidingObject(x4,y4);
+                    if (collider != null&&collider != score1) {
+                        score += SCORE;
+                        remove(score1);
+                        showScore();
+                        remove(collider);
+                        bricksLeft -= 1;
+                        bounceClip.play();
+                        vy = - vy;
+                    }
+                }
+            }
+        }
+    }
+
+    /* Method: getCollidingObject(double x, double y) */
+    /** Returns the colliding brick */
+    private GObject getCollidingObject(double x, double y) {
+        GObject obj = getElementAt(x, y);
+        if (obj == paddle || obj == heart1 || obj == heart2 ||obj == heart3)
+            return null;
+        else
+            return(obj);
+    }
+
+    /* Method: addHearts() */
+    /** Draws three hearts in the right corner */
+    private void addHearts() {
+        heart1 = new GImage("C:\\Users\\Олехандер\\Desktop");
+        heart1.scale(0.1);
+        add(heart1, WIDTH - 60,10);
+        heart2 = new GImage("C:\\Users\\Олехандер\\Desktop");
+        heart2.scale(0.1);
+        add(heart2, WIDTH - 40,10);
+        heart3 = new GImage("C:\\Users\\Олехандер\\Desktop");
+        heart3.scale(0.1);
+        add(heart3, WIDTH - 20,10);
+    }
+
+    /* Method: checkLives() */
+    /** Checks how many lives are left and removes lives or ends the game */
+    private void checkLives() {
+        lives = lives - 1;
+        if (lives == 2) remove(heart1);
+        if (lives == 1) remove(heart2);
+        if (lives == 0) {
+            remove(heart3);
+            removeAll();
+            GLabel label1 = new GLabel("The end of the game");
+            label1.setFont("SimHei-18");
+            add(label1, 100, HEIGHT/2 - 35);
+            GLabel label2 = new GLabel("Your score in the game:" + score);
+            label2.setFont("SimHei-18");
+            add(label2, 75, HEIGHT/2 + 35);
+            waitForClick();
+            removeAll();
+            lives = 3;
+            score = 0;
+            bricksLeft = NBRICK_ROWS*NBRICKS_PER_ROW;
+            level = 1;
+            run();
+        }
+
+    }
+
+    /* Method: showScore() */
+    /** Shows the score of the player for the whole game */
+    private void showScore() {
+        score1 = new GLabel("Score:" + score);
+        score1.setFont("SimHei-20");
+        add(score1,10, 40);
+    }
+
+    /* Method: firstSetup() */
+    /** The first moves of the ball */
+    private void firstSetup() {
+        while (true) {
+            ball.move(vx, vy);
+            checkForWall();
+            pause(DELAY);
+            double xBall = ball.getX();
+            double yBall = ball.getY();
+            double xPaddle = paddle.getX();
+            double yPaddle = paddle.getY();
+            if ((yBall+ball.getHeight())>=yPaddle && xBall+ball.getWidth()/2>xPaddle && xBall+ball.getWidth()/2<=xPaddle+PADDLE_WIDTH) {
+                bounceClip.play();
+                vy = -vy;
+                break;
+            }
+        }
+    }
+
+}
